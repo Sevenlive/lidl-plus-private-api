@@ -1,0 +1,21 @@
+{
+  "name": "lidlplus-api-wrapper",
+  "version": "1.0.0",
+  "description": "TypeScript wrapper for LidlPlus API",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "dev": "bun run src/index.ts",
+    "server": "bun run server.ts",
+    "test": "bun test"
+  },
+  "keywords": ["lidl", "api", "wrapper", "typescript", "bun"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "bun-types": "latest"
+  }
+}
