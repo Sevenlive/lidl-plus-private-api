@@ -1,15 +1,22 @@
-import type { LidlPlusConfig, ApiHeaders, PromotionsResponse, ApiResponse } from './types.js';
+import type { LidlPlusConfig, ApiHeaders, PromotionsResponse, TicketsResponse, TicketsQuery, TicketDetails, ApiResponse } from './types.js';
 
 export class LidlPlusClient {
   private config: Required<LidlPlusConfig>;
-  private baseUrl = 'https://coupons.lidlplus.com/app/api/v3';
+  private promotionsBaseUrl = 'https://coupons.lidlplus.com/app/api/v3';
+  private ticketsBaseUrl = 'https://tickets.lidlplus.com/api/v2';
+  private ticketDetailsBaseUrl = 'https://tickets.lidlplus.com/api/v3';
 
   constructor(config: LidlPlusConfig) {
     this.config = {
-      bearerToken: config.bearerToken,
+      bearerToken: this.cleanBearerToken(config.bearerToken),
       country: config.country || 'DE',
       appVersion: config.appVersion || '16.33.1'
     };
+  }
+
+  private cleanBearerToken(token: string): string {
+    // Remove "Bearer " prefix if it exists
+    return token.replace(/^Bearer\s+/i, '');
   }
 
   private getHeaders(): ApiHeaders {
@@ -22,9 +29,9 @@ export class LidlPlusClient {
     };
   }
 
-  private async makeRequest<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+  private async makeRequest<T>(baseUrl: string, endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
     try {
-      const url = `${this.baseUrl}${endpoint}`;
+      const url = `${baseUrl}${endpoint}`;
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -59,14 +66,45 @@ export class LidlPlusClient {
    * Search for available coupons/promotions
    */
   async getPromotions(): Promise<ApiResponse<PromotionsResponse>> {
-    return this.makeRequest<PromotionsResponse>('/promotionslist');
+    return this.makeRequest<PromotionsResponse>(this.promotionsBaseUrl, '/promotionslist');
+  }
+
+  /**
+   * Get tickets/receipts with optional filtering
+   */
+  async getTickets(query: TicketsQuery = {}): Promise<ApiResponse<TicketsResponse>> {
+    const {
+      pageNumber = 1,
+      onlyFavorite = false,
+      country = this.config.country
+    } = query;
+
+    const endpoint = `/${country}/tickets?pageNumber=${pageNumber}&onlyFavorite=${onlyFavorite}`;
+    return this.makeRequest<TicketsResponse>(this.ticketsBaseUrl, endpoint);
+  }
+
+  /**
+   * Get detailed information for a specific ticket
+   */
+  async getTicketDetails(ticketId: string, country?: string): Promise<ApiResponse<TicketDetails>> {
+    const targetCountry = country || this.config.country;
+    const endpoint = `/${targetCountry}/tickets/${ticketId}`;
+    
+    // Ticket details endpoint requires Accept-Language header
+    const additionalHeaders = {
+      'Accept-Language': targetCountry
+    };
+    
+    return this.makeRequest<TicketDetails>(this.ticketDetailsBaseUrl, endpoint, {
+      headers: additionalHeaders
+    });
   }
 
   /**
    * Update the bearer token
    */
   updateToken(newToken: string): void {
-    this.config.bearerToken = newToken;
+    this.config.bearerToken = this.cleanBearerToken(newToken);
   }
 
   /**
